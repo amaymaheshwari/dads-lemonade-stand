@@ -67,20 +67,17 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-  .kpi-card {
-    background: #f8f9fa;
+  .kpi-label { font-size: 0.75rem; opacity: 0.6; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
+  .kpi-value { font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
+  .kpi-sub   { font-size: 0.78rem; opacity: 0.6; margin-top: 2px; }
+  .buying    { color: #4caf91; font-weight: 600; }
+  .selling   { color: #e05c6a; font-weight: 600; }
+  .neutral   { color: #9aa0aa; font-weight: 600; }
+  div[data-testid="stMetric"] {
+    background: var(--secondary-background-color);
     border-radius: 10px;
-    padding: 16px 20px;
-    border-left: 4px solid #0d6efd;
-    margin-bottom: 8px;
+    padding: 12px 16px;
   }
-  .kpi-label { font-size: 0.75rem; color: #6c757d; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-  .kpi-value { font-size: 1.6rem; font-weight: 700; color: #212529; line-height: 1.2; }
-  .kpi-sub   { font-size: 0.78rem; color: #6c757d; margin-top: 2px; }
-  .buying    { color: #198754; font-weight: 600; }
-  .selling   { color: #dc3545; font-weight: 600; }
-  .neutral   { color: #6c757d; font-weight: 600; }
-  div[data-testid="stMetric"] { background: #f8f9fa; border-radius: 10px; padding: 12px 16px; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -185,8 +182,10 @@ def _render_charts(df: pd.DataFrame) -> None:
             sector_data, values="Count", names="Sector",
             title="Sector Breakdown", hole=0.4,
             color_discrete_sequence=px.colors.qualitative.Set2,
+            template="plotly_dark",
         )
-        fig.update_layout(margin=dict(t=40, b=0, l=0, r=0), height=300, showlegend=True)
+        fig.update_layout(margin=dict(t=40, b=0, l=0, r=0), height=300, showlegend=True,
+                          paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
         fig.update_traces(textposition="inside", textinfo="percent+label")
         st.plotly_chart(fig, use_container_width=True)
     with col2:
@@ -194,10 +193,12 @@ def _render_charts(df: pd.DataFrame) -> None:
         if len(pb_vals):
             fig = px.histogram(
                 pb_vals, title="P/B Ratio Distribution",
-                nbins=15, color_discrete_sequence=["#0d6efd"],
+                nbins=15, color_discrete_sequence=["#4da6ff"],
                 labels={"value": "P/B Ratio", "count": "# Stocks"},
+                template="plotly_dark",
             )
-            fig.update_layout(margin=dict(t=40, b=0, l=0, r=0), height=300, showlegend=False)
+            fig.update_layout(margin=dict(t=40, b=0, l=0, r=0), height=300, showlegend=False,
+                              paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig, use_container_width=True)
 
 
@@ -372,9 +373,11 @@ with tab_overview:
         bar_data, x="Screen", y="Count", color="Screen",
         color_discrete_map=dict(zip(bar_data["Screen"], bar_data["Color"])),
         title="Stocks per Screen", text="Count",
+        template="plotly_dark",
     )
     fig.update_traces(textposition="outside")
-    fig.update_layout(showlegend=False, height=300, margin=dict(t=40, b=0))
+    fig.update_layout(showlegend=False, height=300, margin=dict(t=40, b=0),
+                      paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Highlights Across All Screens")
@@ -400,8 +403,10 @@ with tab_overview:
                 pivot, text_auto=True, aspect="auto",
                 color_continuous_scale="Blues",
                 title="Stock count by Sector × Screen",
+                template="plotly_dark",
             )
-            fig.update_layout(height=400, margin=dict(t=40, b=0))
+            fig.update_layout(height=400, margin=dict(t=40, b=0),
+                              paper_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig, use_container_width=True)
 
 # ── Value screen tab helper ────────────────────────────────────────────────────
