@@ -1,8 +1,8 @@
 """
 Stock Screener — Streamlit web frontend.
 
-Reads daily CSV outputs from the data/ directory and displays them with
-KPI cards, interactive filters, charts, and a manual trigger button.
+Reads daily CSV + brief outputs from data/ and displays them with
+conviction scoring, top-pick cards, a CIO daily brief, and interactive filters.
 
 Streamlit secrets required for the trigger button:
   GH_TOKEN       — GitHub personal access token (scope: workflow)
@@ -17,7 +17,6 @@ from datetime import datetime
 
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 import requests
 import streamlit as st
 
@@ -26,21 +25,21 @@ import streamlit as st
 DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 
 INSIDER_COLORS = {
-    "BUYING":  "#198754",
-    "SELLING": "#dc3545",
-    "NEUTRAL": "#6c757d",
-    "—":       "#adb5bd",
+    "BUYING":  "#4caf91",
+    "SELLING": "#e05c6a",
+    "NEUTRAL": "#9aa0aa",
+    "—":       "#555a63",
 }
 
-SCREENS = {
-    "below30Q":  {"label": "Below 30Q SMA",  "color": "#0d6efd", "sma_col": "30Q SMA"},
+SCREEN_META = {
+    "below30Q":  {"label": "Below 30Q SMA",  "color": "#4da6ff", "sma_col": "30Q SMA"},
     "below50Q":  {"label": "Below 50Q SMA",  "color": "#fd7e14", "sma_col": "50Q SMA"},
-    "below100Q": {"label": "Below 100Q SMA", "color": "#dc3545", "sma_col": "100Q SMA"},
-    "momentum":  {"label": "Momentum",       "color": "#198754", "sma_col": "20Q SMA"},
+    "below100Q": {"label": "Below 100Q SMA", "color": "#e05c6a", "sma_col": "100Q SMA"},
+    "momentum":  {"label": "Momentum",       "color": "#4caf91", "sma_col": "20Q SMA"},
 }
 
 VALUE_COLS = [
-    "Ticker", "Company", "Price", "% Off 52W High", "% Below SMA",
+    "Score", "Ticker", "Company", "Price", "% Off 52W High", "% Below SMA",
     "P/B Ratio", "Div Yield", "ROE",
     "Short % Float", "Short Ratio (Days)",
     "Insider Signal", "Insider Net Value (6mo)", "Insider Buys", "Insider Sells",
@@ -48,7 +47,7 @@ VALUE_COLS = [
 ]
 
 MOM_COLS = [
-    "Ticker", "Company", "Price", "% Above 20Q SMA",
+    "Score", "Ticker", "Company", "Price", "% Above 20Q SMA",
     "20Q SMA", "30Q SMA", "50Q SMA",
     "P/B Ratio", "Div Yield", "ROE",
     "Short % Float", "Short Ratio (Days)",
@@ -67,16 +66,41 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-  .kpi-label { font-size: 0.75rem; opacity: 0.6; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; }
-  .kpi-value { font-size: 1.6rem; font-weight: 700; line-height: 1.2; }
-  .kpi-sub   { font-size: 0.78rem; opacity: 0.6; margin-top: 2px; }
-  .buying    { color: #4caf91; font-weight: 600; }
-  .selling   { color: #e05c6a; font-weight: 600; }
-  .neutral   { color: #9aa0aa; font-weight: 600; }
   div[data-testid="stMetric"] {
     background: var(--secondary-background-color);
     border-radius: 10px;
     padding: 12px 16px;
+  }
+  .brief-card {
+    border-radius: 12px;
+    padding: 20px 24px;
+    border-left: 4px solid #4da6ff;
+    background: var(--secondary-background-color);
+    margin-bottom: 4px;
+  }
+  .brief-label {
+    font-size: 0.68rem;
+    color: #4da6ff;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+  .brief-text {
+    font-size: 0.95rem;
+    line-height: 1.7;
+  }
+  .overlap-badge {
+    display: inline-block;
+    background: #4caf9133;
+    color: #4caf91;
+    border: 1px solid #4caf9155;
+    border-radius: 6px;
+    padding: 2px 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    margin-left: 6px;
+    vertical-align: middle;
   }
 </style>
 """, unsafe_allow_html=True)
@@ -102,6 +126,15 @@ def load_csv(date_str: str, screen_type: str) -> pd.DataFrame | None:
 
 
 @st.cache_data(ttl=300)
+def load_brief(date_str: str) -> str | None:
+    path = os.path.join(DATA_DIR, f"brief_{date_str}.txt")
+    if not os.path.exists(path):
+        return None
+    with open(path, encoding="utf-8") as f:
+        return f.read().strip()
+
+
+@st.cache_data(ttl=300)
 def load_reports(date_str: str) -> dict[str, str]:
     paths = glob.glob(os.path.join(DATA_DIR, f"report_{date_str}_*.txt"))
     result: dict[str, str] = {}
@@ -115,16 +148,30 @@ def load_reports(date_str: str) -> dict[str, str]:
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
 
-def _to_float(s) -> float:
+def _f(s) -> float:
+    """Parse a formatted string like '1.23%' or '$5.2B' to a float."""
     try:
         return float(str(s).replace("%", "").replace("+", "").replace("$", "").strip())
     except (ValueError, AttributeError):
         return float("nan")
 
 
+def compute_conviction(df: pd.DataFrame) -> pd.DataFrame:
+    """Add a 'Score' column (0–10) based on insider signal, P/B, short %, ROE, dividend."""
+    df = df.copy()
+    ins_map = {"BUYING": 3.0, "NEUTRAL": 1.0, "—": 0.0, "SELLING": -2.0}
+    ins   = df["Insider Signal"].map(ins_map).fillna(0)
+    pb    = df["P/B Ratio"].apply(_f).clip(0, 2)
+    short = df["Short % Float"].apply(_f).fillna(10).clip(0, 20)
+    roe   = df["ROE"].apply(_f).fillna(0).clip(0, 20)
+    div   = (df["Div Yield"].apply(_f) > 0).astype(float)
+    raw   = ins + (2 - pb) / 2 * 3 + (20 - short) / 20 + roe / 20 + div * 0.5
+    df.insert(0, "Score", (raw / 8.5 * 10).clip(0, 10).round(1))
+    return df.sort_values("Score", ascending=False)
+
+
 def _style_insider(val: str) -> str:
-    color = INSIDER_COLORS.get(str(val), INSIDER_COLORS["—"])
-    return f"color: {color}; font-weight: 600"
+    return f"color: {INSIDER_COLORS.get(str(val), INSIDER_COLORS['—'])}; font-weight: 600"
 
 
 def _apply_filters(df: pd.DataFrame, search: str, sector: str, insider: str, pb_max: float) -> pd.DataFrame:
@@ -134,125 +181,139 @@ def _apply_filters(df: pd.DataFrame, search: str, sector: str, insider: str, pb_
             | df["Company"].str.contains(search, case=False, na=False)
         )
         df = df[mask]
-    if sector and sector != "All":
+    if sector != "All":
         df = df[df["Sector"] == sector]
-    if insider and insider != "All":
+    if insider != "All":
         df = df[df["Insider Signal"] == insider]
     if pb_max < 2.0 and "P/B Ratio" in df.columns:
-        df = df[df["P/B Ratio"].apply(_to_float) <= pb_max]
+        df = df[df["P/B Ratio"].apply(_f) <= pb_max]
     return df
 
 
-def _kpi_buying_pct(df: pd.DataFrame) -> str:
+def _cnt(df) -> int:
+    return len(df) if df is not None else 0
+
+
+def _kpi(df, metric) -> str:
     if df is None or df.empty:
         return "—"
-    n = len(df)
-    buying = (df["Insider Signal"] == "BUYING").sum()
-    return f"{buying / n * 100:.0f}%"
+    if metric == "buying_pct":
+        return f"{(df['Insider Signal'] == 'BUYING').sum() / len(df) * 100:.0f}%"
+    if metric == "avg_pb":
+        v = df["P/B Ratio"].apply(_f).dropna()
+        return f"{v.mean():.2f}×" if len(v) else "—"
+    if metric == "with_div":
+        return f"{(df['Div Yield'].apply(_f) > 0).sum() / len(df) * 100:.0f}%"
+    return "—"
 
 
-def _kpi_avg_pb(df: pd.DataFrame) -> str:
+def render_top_cards(df: pd.DataFrame, overlap_tickers: set, n: int = 5) -> None:
+    """Render top-N conviction cards. df must already have a Score column and _screen column."""
     if df is None or df.empty:
-        return "—"
-    vals = df["P/B Ratio"].apply(_to_float).dropna()
-    return f"{vals.mean():.2f}x" if len(vals) else "—"
+        return
+    top = df.head(n)
+    cols = st.columns(len(top))
+    for i, (_, row) in enumerate(top.iterrows()):
+        screen   = row.get("_screen", "")
+        color    = next((v["color"] for k, v in SCREEN_META.items() if v["label"] == screen), "#4da6ff")
+        ins      = row.get("Insider Signal", "—")
+        ins_col  = INSIDER_COLORS.get(ins, INSIDER_COLORS["—"])
+        ticker   = row.get("Ticker", "")
+        company  = row.get("Company", "")[:22]
+        score    = row.get("Score", 0)
+        overlap  = "⭐ " if ticker in overlap_tickers else ""
+        with cols[i]:
+            st.markdown(f"""
+<div style="background:var(--secondary-background-color);border-radius:12px;
+            padding:16px 14px;border-top:3px solid {color};text-align:center;height:100%">
+  <div style="font-size:1.45rem;font-weight:800;letter-spacing:-0.02em">{overlap}{ticker}</div>
+  <div style="font-size:0.7rem;opacity:0.55;margin-bottom:10px;overflow:hidden;
+              white-space:nowrap;text-overflow:ellipsis">{company}</div>
+  <div style="font-size:1.25rem;font-weight:700;color:{color}">{score}/10</div>
+  <div style="font-size:0.6rem;opacity:0.45;letter-spacing:0.08em;
+              text-transform:uppercase;margin-bottom:10px">Conviction</div>
+  <hr style="opacity:0.12;margin:8px 0">
+  <table style="width:100%;font-size:0.72rem;border-collapse:collapse">
+    <tr><td style="opacity:0.5;text-align:left">P/B</td>
+        <td style="font-weight:600;text-align:right">{row.get('P/B Ratio','—')}</td></tr>
+    <tr><td style="opacity:0.5;text-align:left">Insider</td>
+        <td style="font-weight:600;text-align:right;color:{ins_col}">{ins}</td></tr>
+    <tr><td style="opacity:0.5;text-align:left">ROE</td>
+        <td style="font-weight:600;text-align:right">{row.get('ROE','—')}</td></tr>
+    <tr><td style="opacity:0.5;text-align:left">Div</td>
+        <td style="font-weight:600;text-align:right">{row.get('Div Yield','—')}</td></tr>
+  </table>
+  <div style="margin-top:10px;font-size:0.62rem;border-radius:4px;padding:3px 6px;
+              background:{color}22;color:{color};font-weight:600">{screen}</div>
+</div>""", unsafe_allow_html=True)
 
 
-def _kpi_with_div(df: pd.DataFrame) -> str:
-    if df is None or df.empty:
-        return "—"
-    has_div = df["Div Yield"].apply(lambda x: _to_float(x) > 0).sum()
-    return f"{has_div / len(df) * 100:.0f}%"
-
-
-def _render_table(df: pd.DataFrame, col_order: list[str]) -> None:
+def render_table(df: pd.DataFrame, col_order: list[str]) -> None:
     cols = [c for c in col_order if c in df.columns]
     styled = df[cols].style.map(_style_insider, subset=["Insider Signal"])
     st.dataframe(styled, use_container_width=True, hide_index=True, height=460)
 
 
-def _render_charts(df: pd.DataFrame) -> None:
+def render_charts(df: pd.DataFrame) -> None:
     if df is None or df.empty:
         return
-    col1, col2 = st.columns(2)
-    with col1:
-        sector_data = df["Sector"].value_counts().reset_index()
-        sector_data.columns = ["Sector", "Count"]
-        fig = px.pie(
-            sector_data, values="Count", names="Sector",
-            title="Sector Breakdown", hole=0.4,
-            color_discrete_sequence=px.colors.qualitative.Set2,
-            template="plotly_dark",
-        )
-        fig.update_layout(margin=dict(t=40, b=0, l=0, r=0), height=300, showlegend=True,
-                          paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+    c1, c2 = st.columns(2)
+    with c1:
+        sd = df["Sector"].value_counts().reset_index()
+        sd.columns = ["Sector", "Count"]
+        fig = px.pie(sd, values="Count", names="Sector", title="Sector Breakdown",
+                     hole=0.4, template="plotly_dark",
+                     color_discrete_sequence=px.colors.qualitative.Set2)
+        fig.update_layout(margin=dict(t=40,b=0,l=0,r=0), height=300,
+                          paper_bgcolor="rgba(0,0,0,0)")
         fig.update_traces(textposition="inside", textinfo="percent+label")
         st.plotly_chart(fig, use_container_width=True)
-    with col2:
-        pb_vals = df["P/B Ratio"].apply(_to_float).dropna()
-        if len(pb_vals):
-            fig = px.histogram(
-                pb_vals, title="P/B Ratio Distribution",
-                nbins=15, color_discrete_sequence=["#4da6ff"],
-                labels={"value": "P/B Ratio", "count": "# Stocks"},
-                template="plotly_dark",
-            )
-            fig.update_layout(margin=dict(t=40, b=0, l=0, r=0), height=300, showlegend=False,
+    with c2:
+        pb = df["P/B Ratio"].apply(_f).dropna()
+        if len(pb):
+            fig = px.histogram(pb, title="P/B Distribution", nbins=15, template="plotly_dark",
+                               color_discrete_sequence=["#4da6ff"],
+                               labels={"value": "P/B Ratio", "count": "Stocks"})
+            fig.update_layout(margin=dict(t=40,b=0,l=0,r=0), height=300, showlegend=False,
                               paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig, use_container_width=True)
 
 
-def _render_highlights(df: pd.DataFrame) -> None:
-    """Top-5 cards for insider buying, highest dividend, lowest P/B."""
+def render_highlights(df: pd.DataFrame) -> None:
     if df is None or df.empty:
         return
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
+    c1, c2, c3 = st.columns(3)
+    with c1:
         st.markdown("**🟢 Insider Buying**")
-        buying = df[df["Insider Signal"] == "BUYING"][["Ticker", "Company", "Insider Net Value (6mo)", "Sector"]].head(5)
-        if buying.empty:
-            st.caption("None this run")
-        else:
-            st.dataframe(buying, hide_index=True, use_container_width=True,
-                         height=40 + 35 * len(buying))
-
-    with col2:
-        st.markdown("**💰 Highest Dividend Yield**")
-        div_df = df.copy()
-        div_df["_div"] = div_df["Div Yield"].apply(_to_float)
-        top_div = div_df[div_df["_div"] > 0].nlargest(5, "_div")[["Ticker", "Company", "Div Yield", "Sector"]]
-        if top_div.empty:
-            st.caption("None with dividends")
-        else:
-            st.dataframe(top_div, hide_index=True, use_container_width=True,
-                         height=40 + 35 * len(top_div))
-
-    with col3:
-        st.markdown("**📉 Lowest P/B Ratio**")
-        pb_df = df.copy()
-        pb_df["_pb"] = pb_df["P/B Ratio"].apply(_to_float)
-        top_pb = pb_df[pb_df["_pb"] > 0].nsmallest(5, "_pb")[["Ticker", "Company", "P/B Ratio", "Sector"]]
-        if top_pb.empty:
-            st.caption("No P/B data")
-        else:
-            st.dataframe(top_pb, hide_index=True, use_container_width=True,
-                         height=40 + 35 * len(top_pb))
+        b = df[df["Insider Signal"] == "BUYING"][["Ticker","Company","Insider Net Value (6mo)","Sector"]].head(5)
+        st.dataframe(b, hide_index=True, use_container_width=True,
+                     height=40+35*max(len(b),1)) if not b.empty else st.caption("None this run")
+    with c2:
+        st.markdown("**💰 Highest Dividend**")
+        d = df.copy(); d["_d"] = d["Div Yield"].apply(_f)
+        top = d[d["_d"]>0].nlargest(5,"_d")[["Ticker","Company","Div Yield","Sector"]]
+        st.dataframe(top, hide_index=True, use_container_width=True,
+                     height=40+35*max(len(top),1)) if not top.empty else st.caption("None paying dividends")
+    with c3:
+        st.markdown("**📉 Lowest P/B**")
+        p = df.copy(); p["_p"] = p["P/B Ratio"].apply(_f)
+        top = p[p["_p"]>0].nsmallest(5,"_p")[["Ticker","Company","P/B Ratio","Sector"]]
+        st.dataframe(top, hide_index=True, use_container_width=True,
+                     height=40+35*max(len(top),1)) if not top.empty else st.caption("No P/B data")
 
 
-def _trigger_workflow(force_reports: bool) -> None:
+def trigger_workflow(force: bool) -> None:
     try:
         token = st.secrets["GH_TOKEN"]
         owner = st.secrets["GITHUB_OWNER"]
         repo  = st.secrets.get("GITHUB_REPO", "stock-screener")
     except KeyError as exc:
-        st.error(f"Missing secret: {exc}. Add it in Settings → Secrets.")
+        st.error(f"Missing secret: {exc}")
         return
     resp = requests.post(
         f"https://api.github.com/repos/{owner}/{repo}/actions/workflows/daily_screener.yml/dispatches",
         headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github.v3+json"},
-        json={"ref": "master", "inputs": {"force_reports": str(force_reports).lower()}},
+        json={"ref": "master", "inputs": {"force_reports": str(force).lower()}},
         timeout=10,
     )
     if resp.status_code == 204:
@@ -270,8 +331,7 @@ with st.sidebar:
     dates = available_dates()
     if not dates:
         st.warning("No data yet.")
-        selected_date = None
-        prev_date = None
+        selected_date = prev_date = None
     else:
         selected_date = st.selectbox(
             "Date", options=dates, index=0,
@@ -284,30 +344,23 @@ with st.sidebar:
         df_50q  = load_csv(selected_date, "below50Q")
         df_100q = load_csv(selected_date, "below100Q")
         df_mom  = load_csv(selected_date, "momentum")
-
-        if prev_date:
-            p30q  = load_csv(prev_date, "below30Q")
-            p50q  = load_csv(prev_date, "below50Q")
-            p100q = load_csv(prev_date, "below100Q")
-            pmom  = load_csv(prev_date, "momentum")
-        else:
-            p30q = p50q = p100q = pmom = None
+        p30  = load_csv(prev_date, "below30Q")  if prev_date else None
+        p50  = load_csv(prev_date, "below50Q")  if prev_date else None
+        p100 = load_csv(prev_date, "below100Q") if prev_date else None
+        pmom = load_csv(prev_date, "momentum")  if prev_date else None
 
         st.divider()
         st.subheader("Counts")
-        def _cnt(df): return len(df) if df is not None else 0
-        def _delta(cur, prev): return (_cnt(cur) - _cnt(prev)) if prev is not None else None
-
-        st.metric("Below 30Q SMA",  _cnt(df_30q),  _delta(df_30q,  p30q))
-        st.metric("Below 50Q SMA",  _cnt(df_50q),  _delta(df_50q,  p50q))
-        st.metric("Below 100Q SMA", _cnt(df_100q), _delta(df_100q, p100q))
-        st.metric("Momentum",       _cnt(df_mom),  _delta(df_mom,  pmom))
+        st.metric("Below 30Q SMA",  _cnt(df_30q),  (_cnt(df_30q) -_cnt(p30))  if prev_date else None)
+        st.metric("Below 50Q SMA",  _cnt(df_50q),  (_cnt(df_50q) -_cnt(p50))  if prev_date else None)
+        st.metric("Below 100Q SMA", _cnt(df_100q), (_cnt(df_100q)-_cnt(p100)) if prev_date else None)
+        st.metric("Momentum",       _cnt(df_mom),  (_cnt(df_mom) -_cnt(pmom)) if prev_date else None)
 
     st.divider()
     st.subheader("Run Screener")
     force = st.toggle("Force research reports", value=False)
     if st.button("Run Now", type="primary", use_container_width=True):
-        _trigger_workflow(force)
+        trigger_workflow(force)
     st.caption("Needs GH_TOKEN + GITHUB_OWNER in Streamlit secrets.")
 
 # ── Guard ──────────────────────────────────────────────────────────────────────
@@ -316,27 +369,71 @@ if not selected_date:
     st.info("No data found. Trigger a run or wait for the daily 7 AM ET job.")
     st.stop()
 
-# ── Top KPI bar ────────────────────────────────────────────────────────────────
+# ── Load & score data ──────────────────────────────────────────────────────────
 
-all_dfs = [df for df in [df_30q, df_50q, df_100q, df_mom] if df is not None]
-combined = pd.concat(all_dfs, ignore_index=True) if all_dfs else pd.DataFrame()
-unique_tickers = combined["Ticker"].nunique() if not combined.empty else 0
+df_30q  = compute_conviction(df_30q)  if df_30q  is not None else None
+df_50q  = compute_conviction(df_50q)  if df_50q  is not None else None
+df_100q = compute_conviction(df_100q) if df_100q is not None else None
+df_mom  = compute_conviction(df_mom)  if df_mom  is not None else None
 
-total_value = sum(_cnt(d) for d in [df_30q, df_50q, df_100q])
-buying_pct  = _kpi_buying_pct(combined)
-avg_pb      = _kpi_avg_pb(combined)
-with_div    = _kpi_with_div(combined)
-n_sectors   = combined["Sector"].nunique() if not combined.empty else 0
+# Combined ranked list across all screens (deepest value wins on dedup)
+_frames = []
+for _df, _key in [(df_100q,"below100Q"),(df_50q,"below50Q"),(df_30q,"below30Q"),(df_mom,"momentum")]:
+    if _df is not None and not _df.empty:
+        _d = _df.copy()
+        _d["_screen"] = SCREEN_META[_key]["label"]
+        _frames.append(_d)
+combined = pd.concat(_frames).drop_duplicates("Ticker", keep="first").sort_values("Score", ascending=False) if _frames else pd.DataFrame()
+
+# Cross-screen overlap: tickers in any value screen AND momentum
+value_tickers = set()
+for _df in [df_30q, df_50q, df_100q]:
+    if _df is not None:
+        value_tickers.update(_df["Ticker"].tolist())
+mom_tickers = set(df_mom["Ticker"].tolist()) if df_mom is not None else set()
+overlap_tickers = value_tickers & mom_tickers
+
+# ── Daily Brief ────────────────────────────────────────────────────────────────
 
 fmt_date = datetime.strptime(selected_date, "%Y-%m-%d").strftime("%B %d, %Y")
-st.markdown(f"### Results — {fmt_date}")
+st.markdown(f"### {fmt_date}")
+
+brief = load_brief(selected_date)
+if brief:
+    st.markdown(f"""
+<div class="brief-card">
+  <div class="brief-label">📋 Daily Brief</div>
+  <div class="brief-text">{brief}</div>
+</div>""", unsafe_allow_html=True)
+else:
+    st.caption("No brief for this date — generated automatically from the next screener run.")
+
+st.divider()
+
+# ── Top Conviction Picks ───────────────────────────────────────────────────────
+
+if overlap_tickers:
+    overlap_list = ", ".join(sorted(overlap_tickers))
+    st.markdown(
+        f"**Top Conviction Picks** &nbsp;"
+        f'<span class="overlap-badge">⭐ {len(overlap_tickers)} cross-screen: {overlap_list}</span>',
+        unsafe_allow_html=True,
+    )
+    st.caption("⭐ = appears in both a value screen and momentum — highest conviction signal")
+else:
+    st.markdown("**Top Conviction Picks** — ranked across all screens")
+
+render_top_cards(combined, overlap_tickers, n=5)
+st.divider()
+
+# ── KPI bar ────────────────────────────────────────────────────────────────────
 
 k1, k2, k3, k4, k5 = st.columns(5)
-k1.metric("Unique Tickers",    f"{unique_tickers:,}")
-k2.metric("Value Screen Hits", f"{total_value:,}")
-k3.metric("Momentum Hits",     f"{_cnt(df_mom):,}")
-k4.metric("Insider Buying",    buying_pct)
-k5.metric("Avg P/B Ratio",     avg_pb)
+k1.metric("Unique Tickers",   f"{combined['Ticker'].nunique():,}" if not combined.empty else "—")
+k2.metric("Value Hits",       f"{_cnt(df_30q)+_cnt(df_50q)+_cnt(df_100q):,}")
+k3.metric("Momentum Hits",    f"{_cnt(df_mom):,}")
+k4.metric("Insider Buying",   _kpi(combined, "buying_pct"))
+k5.metric("Avg P/B",          _kpi(combined, "avg_pb"))
 
 st.divider()
 
@@ -349,132 +446,122 @@ sector_opts = ["All"] + sorted(
 fc1, fc2, fc3, fc4 = st.columns([2, 2, 2, 2])
 search_q       = fc1.text_input("🔍 Search", placeholder="Ticker or company", label_visibility="collapsed")
 sector_filter  = fc2.selectbox("Sector", sector_opts, label_visibility="collapsed")
-insider_filter = fc3.selectbox("Insider", ["All", "BUYING", "NEUTRAL", "SELLING", "—"], label_visibility="collapsed")
+insider_filter = fc3.selectbox("Insider", ["All","BUYING","NEUTRAL","SELLING","—"], label_visibility="collapsed")
 pb_max         = fc4.slider("Max P/B", min_value=0.0, max_value=2.0, value=2.0, step=0.1)
 
 # ── Tabs ───────────────────────────────────────────────────────────────────────
 
-tab_overview, tab1, tab2, tab3, tab4 = st.tabs([
+tab_ov, tab1, tab2, tab3, tab4 = st.tabs([
     "📊 Overview", "🔵 Below 30Q", "🟠 Below 50Q", "🔴 Below 100Q", "🚀 Momentum"
 ])
 
-# ── Overview ───────────────────────────────────────────────────────────────────
+# Overview ─────────────────────────────────────────────────────────────────────
 
-with tab_overview:
-    st.subheader("Cross-Screen Summary")
-
-    # Bar chart: count per screen
+with tab_ov:
     bar_data = pd.DataFrame({
-        "Screen":  ["Below 30Q", "Below 50Q", "Below 100Q", "Momentum"],
-        "Count":   [_cnt(df_30q), _cnt(df_50q), _cnt(df_100q), _cnt(df_mom)],
-        "Color":   ["#0d6efd",   "#fd7e14",    "#dc3545",     "#198754"],
+        "Screen": ["Below 30Q","Below 50Q","Below 100Q","Momentum"],
+        "Count":  [_cnt(df_30q),_cnt(df_50q),_cnt(df_100q),_cnt(df_mom)],
+        "Color":  ["#4da6ff","#fd7e14","#e05c6a","#4caf91"],
     })
-    fig = px.bar(
-        bar_data, x="Screen", y="Count", color="Screen",
-        color_discrete_map=dict(zip(bar_data["Screen"], bar_data["Color"])),
-        title="Stocks per Screen", text="Count",
-        template="plotly_dark",
-    )
+    fig = px.bar(bar_data, x="Screen", y="Count", color="Screen", text="Count",
+                 color_discrete_map=dict(zip(bar_data["Screen"], bar_data["Color"])),
+                 title="Stocks per Screen", template="plotly_dark")
     fig.update_traces(textposition="outside")
-    fig.update_layout(showlegend=False, height=300, margin=dict(t=40, b=0),
+    fig.update_layout(showlegend=False, height=280, margin=dict(t=40,b=0),
                       paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     st.plotly_chart(fig, use_container_width=True)
 
     st.subheader("Highlights Across All Screens")
-    _render_highlights(combined)
+    render_highlights(combined)
 
-    # Sector heatmap across screens
     st.subheader("Sector Exposure")
     if not combined.empty:
-        sector_screen = []
-        labels = {"below30Q": "Below 30Q", "below50Q": "Below 50Q",
-                  "below100Q": "Below 100Q", "momentum": "Momentum"}
-        for key, df in [("below30Q", df_30q), ("below50Q", df_50q),
-                         ("below100Q", df_100q), ("momentum", df_mom)]:
+        frames_heat = []
+        for key, df in [("below30Q",df_30q),("below50Q",df_50q),
+                         ("below100Q",df_100q),("momentum",df_mom)]:
             if df is not None:
-                counts = df["Sector"].value_counts().reset_index()
-                counts.columns = ["Sector", "Count"]
-                counts["Screen"] = labels[key]
-                sector_screen.append(counts)
-        if sector_screen:
-            ss_df = pd.concat(sector_screen, ignore_index=True)
-            pivot = ss_df.pivot_table(index="Sector", columns="Screen", values="Count", fill_value=0)
-            fig = px.imshow(
-                pivot, text_auto=True, aspect="auto",
-                color_continuous_scale="Blues",
-                title="Stock count by Sector × Screen",
-                template="plotly_dark",
-            )
-            fig.update_layout(height=400, margin=dict(t=40, b=0),
+                sc = df["Sector"].value_counts().reset_index()
+                sc.columns = ["Sector","Count"]
+                sc["Screen"] = SCREEN_META[key]["label"]
+                frames_heat.append(sc)
+        if frames_heat:
+            ss = pd.concat(frames_heat)
+            pivot = ss.pivot_table(index="Sector", columns="Screen", values="Count", fill_value=0)
+            fig = px.imshow(pivot, text_auto=True, aspect="auto",
+                            color_continuous_scale="Blues", template="plotly_dark",
+                            title="Stock count by Sector × Screen")
+            fig.update_layout(height=420, margin=dict(t=40,b=0),
                               paper_bgcolor="rgba(0,0,0,0)")
             st.plotly_chart(fig, use_container_width=True)
 
-# ── Value screen tab helper ────────────────────────────────────────────────────
+# Value tab helper ─────────────────────────────────────────────────────────────
 
-def _value_tab(df: pd.DataFrame | None, label: str, sma_col: str, color: str) -> None:
+def value_tab(df, label, sma_col):
     if df is None or df.empty:
         st.info(f"No {label} data for {selected_date}.")
         return
-
     filtered = _apply_filters(df, search_q, sector_filter, insider_filter, pb_max)
+    st.caption(f"{len(filtered):,} of {len(df):,} stocks")
 
-    # Mini KPIs
-    m1, m2, m3, m4 = st.columns(4)
-    m1.metric("Stocks shown",    f"{len(filtered):,}", f"{len(filtered) - len(df):+,}" if len(filtered) != len(df) else None)
-    m2.metric("Insider Buying",  _kpi_buying_pct(filtered))
-    m3.metric("Avg P/B",         _kpi_avg_pb(filtered))
-    m4.metric("With Dividend",   _kpi_with_div(filtered))
+    st.markdown(f"**Top picks — {label}**")
+    render_top_cards(filtered, overlap_tickers, n=5)
+    st.markdown("")
+
+    m1,m2,m3,m4 = st.columns(4)
+    m1.metric("Shown",          f"{len(filtered):,}")
+    m2.metric("Insider Buying", _kpi(filtered,"buying_pct"))
+    m3.metric("Avg P/B",        _kpi(filtered,"avg_pb"))
+    m4.metric("With Dividend",  _kpi(filtered,"with_div"))
 
     cols = [sma_col if c == "% Below SMA" else c for c in VALUE_COLS]
-    _render_table(filtered, cols)
-    _render_charts(filtered)
-
-    st.subheader("Highlights")
-    _render_highlights(filtered)
+    render_table(filtered, cols)
+    render_charts(filtered)
+    st.subheader("Highlights"); render_highlights(filtered)
 
 
 with tab1:
     st.markdown("Price below its **30-quarter (7.5 yr) SMA** — trading below long-run average.")
-    _value_tab(df_30q, "Below 30Q", "30Q SMA", "#0d6efd")
+    value_tab(df_30q, "Below 30Q", "30Q SMA")
 
 with tab2:
     st.markdown("Price below its **50-quarter (12.5 yr) SMA** — moderate undervaluation.")
-    _value_tab(df_50q, "Below 50Q", "50Q SMA", "#fd7e14")
+    value_tab(df_50q, "Below 50Q", "50Q SMA")
 
 with tab3:
     st.markdown("Price below its **100-quarter (25 yr) SMA** — deep undervaluation vs 25-year history.")
-    _value_tab(df_100q, "Below 100Q", "100Q SMA", "#dc3545")
+    value_tab(df_100q, "Below 100Q", "100Q SMA")
 
-# ── Momentum tab ───────────────────────────────────────────────────────────────
+# Momentum tab ─────────────────────────────────────────────────────────────────
 
 with tab4:
-    st.markdown("**Bull-aligned quarterly SMAs**, trading near 20Q support with insider buying or neutral.")
-
+    st.markdown("**Bull-aligned quarterly SMAs**, near 20Q support, insider buying or neutral.")
     if df_mom is None or df_mom.empty:
         st.info(f"No momentum data for {selected_date}.")
     else:
         filtered_mom = _apply_filters(df_mom, search_q, sector_filter, insider_filter, pb_max)
+        st.caption(f"{len(filtered_mom):,} of {len(df_mom):,} stocks")
 
-        m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Stocks shown",  f"{len(filtered_mom):,}")
-        m2.metric("Insider Buying", _kpi_buying_pct(filtered_mom))
-        m3.metric("Avg P/B",       _kpi_avg_pb(filtered_mom))
-        m4.metric("With Dividend", _kpi_with_div(filtered_mom))
+        st.markdown("**Top picks — Momentum**")
+        render_top_cards(filtered_mom, overlap_tickers, n=5)
+        st.markdown("")
 
-        _render_table(filtered_mom, MOM_COLS)
-        _render_charts(filtered_mom)
+        m1,m2,m3,m4 = st.columns(4)
+        m1.metric("Shown",          f"{len(filtered_mom):,}")
+        m2.metric("Insider Buying", _kpi(filtered_mom,"buying_pct"))
+        m3.metric("Avg P/B",        _kpi(filtered_mom,"avg_pb"))
+        m4.metric("With Dividend",  _kpi(filtered_mom,"with_div"))
 
-        st.subheader("Highlights")
-        _render_highlights(filtered_mom)
+        render_table(filtered_mom, MOM_COLS)
+        render_charts(filtered_mom)
+        st.subheader("Highlights"); render_highlights(filtered_mom)
 
-        # Research reports
         reports = load_reports(selected_date)
         if reports:
             st.divider()
             st.subheader(f"📄 Research Reports ({len(reports)})")
             st.caption("Claude-generated investment memos for new momentum names.")
             for ticker, text in reports.items():
-                with st.expander(f"{ticker}"):
+                with st.expander(ticker):
                     st.text(text)
         else:
             st.caption("No research reports for this date — generated on Mondays or when forced.")
