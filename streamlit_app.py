@@ -286,20 +286,28 @@ def render_highlights(df: pd.DataFrame) -> None:
     with c1:
         st.markdown("**🟢 Insider Buying**")
         b = df[df["Insider Signal"] == "BUYING"][["Ticker","Company","Insider Net Value (6mo)","Sector"]].head(5)
-        st.dataframe(b, hide_index=True, use_container_width=True,
-                     height=40+35*max(len(b),1)) if not b.empty else st.caption("None this run")
+        if not b.empty:
+            st.dataframe(b, hide_index=True, use_container_width=True, height=215)
+        else:
+            st.caption("None this run")
     with c2:
         st.markdown("**💰 Highest Dividend**")
-        d = df.copy(); d["_d"] = d["Div Yield"].apply(_f)
-        top = d[d["_d"]>0].nlargest(5,"_d")[["Ticker","Company","Div Yield","Sector"]]
-        st.dataframe(top, hide_index=True, use_container_width=True,
-                     height=40+35*max(len(top),1)) if not top.empty else st.caption("None paying dividends")
+        d = df.copy()
+        d["_d"] = d["Div Yield"].apply(_f)
+        top = d[d["_d"] > 0].nlargest(5, "_d")[["Ticker","Company","Div Yield","Sector"]]
+        if not top.empty:
+            st.dataframe(top, hide_index=True, use_container_width=True, height=215)
+        else:
+            st.caption("None paying dividends")
     with c3:
         st.markdown("**📉 Lowest P/B**")
-        p = df.copy(); p["_p"] = p["P/B Ratio"].apply(_f)
-        top = p[p["_p"]>0].nsmallest(5,"_p")[["Ticker","Company","P/B Ratio","Sector"]]
-        st.dataframe(top, hide_index=True, use_container_width=True,
-                     height=40+35*max(len(top),1)) if not top.empty else st.caption("No P/B data")
+        p = df.copy()
+        p["_p"] = p["P/B Ratio"].apply(_f)
+        top = p[p["_p"] > 0].nsmallest(5, "_p")[["Ticker","Company","P/B Ratio","Sector"]]
+        if not top.empty:
+            st.dataframe(top, hide_index=True, use_container_width=True, height=215)
+        else:
+            st.caption("No P/B data")
 
 
 def trigger_workflow(force: bool) -> None:
@@ -424,6 +432,19 @@ else:
     st.markdown("**Top Conviction Picks** — ranked across all screens")
 
 render_top_cards(combined, overlap_tickers, n=5)
+st.markdown("")
+with st.expander("How is the conviction score calculated?"):
+    st.markdown("""
+| Factor | Max pts | Logic |
+|---|---|---|
+| **Insider signal** | 3 | BUYING = 3 · NEUTRAL = 1 · — = 0 · SELLING = −2 |
+| **P/B ratio** | 3 | Lower is better — P/B 0 scores 3, P/B 2 scores 0 |
+| **Short % float** | 1 | Lower short interest = higher score (capped at 20%) |
+| **Return on equity** | 1 | ROE ≥ 20% earns the full point |
+| **Dividend** | 0.5 | Bonus for any dividend yield > 0 |
+
+Raw score (max 8.5) is normalised to **0–10**. ⭐ marks stocks appearing in both a value screen and momentum — the rarest, highest-confidence signal.
+    """)
 st.divider()
 
 # ── KPI bar ────────────────────────────────────────────────────────────────────
@@ -474,6 +495,7 @@ with tab_ov:
     st.subheader("Highlights Across All Screens")
     render_highlights(combined)
 
+    st.divider()
     st.subheader("Sector Exposure")
     if not combined.empty:
         frames_heat = []
