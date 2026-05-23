@@ -17,6 +17,7 @@ from datetime import datetime
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import requests
 import streamlit as st
 
@@ -521,8 +522,8 @@ pb_max         = fc4.slider("Max P/B", min_value=0.0, max_value=2.0, value=2.0, 
 
 # ── Tabs ───────────────────────────────────────────────────────────────────────
 
-tab_ov, tab1, tab2, tab3, tab4 = st.tabs([
-    "📊 Overview", "🔵 Below 30Q", "🟠 Below 50Q", "🔴 Below 100Q", "🚀 Momentum"
+tab_ov, tab1, tab2, tab3, tab4, tab_diag = st.tabs([
+    "📊 Overview", "🔵 Below 30Q", "🟠 Below 50Q", "🔴 Below 100Q", "🚀 Momentum", "🔍 Diagnostics"
 ])
 
 # Overview ─────────────────────────────────────────────────────────────────────
@@ -636,3 +637,189 @@ with tab4:
                     st.text(text)
         else:
             st.caption("No research reports for this date — generated on Mondays or when forced.")
+
+# ── Diagnostics tab ────────────────────────────────────────────────────────────
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _fetch_financials(ticker: str) -> dict:
+    import yfinance as yf
+    t   = yf.Ticker(ticker)
+    return {"income": t.income_stmt, "info": t.info}
+
+
+def _run_diagnostic(ticker: str) -> None:
+    with st.spinner(f"Loading {ticker} financials…"):
+        try:
+            data = _fetch_financials(ticker)
+        except Exception as exc:
+            st.error(f"Could not load data for {ticker}: {exc}")
+            return
+
+    income = data["income"]
+    info   = data["info"]
+
+    if income is None or income.empty:
+        st.error(f"No financial data found for {ticker}.")
+        return
+
+    # ── Extract series ─────────────────────────────────────────────────────────
+    def _row(label):
+        for l in [label, label.replace(" ", ""), label.lower()]:
+            if l in income.index:
+                return income.loc[l].sort_index()
+        return None
+
+    rev = _row("Total Revenue")
+    if rev is None:
+        st.error(f"No revenue data for {ticker}.")
+        return
+
+    rev_b   = rev / 1e9
+    years   = [str(d.year) for d in rev_b.index]
+    gp      = _row("Gross Profit")
+    op      = _row("Operating Income")
+    g_margin = (gp / rev * 100).clip(-100, 100) if gp is not None else None
+    o_margin = (op / rev * 100).clip(-100, 100) if op is not None else None
+
+    # ── Signals ────────────────────────────────────────────────────────────────
+    signals    = []
+    red_flags  = 0
+    green_flags = 0
+
+    def sig(icon, label, detail):
+        nonlocal red_flags, green_flags
+        signals.append((icon, label, detail))
+        if icon == "🔴": red_flags  += 1
+        if icon == "✅": green_flags += 1
+
+    if len(rev_b) >= 3:
+        delta = float(rev_b.iloc[-1] - rev_b.iloc[-3])
+        pct   = delta / abs(float(rev_b.iloc[-3])) * 100 if rev_b.iloc[-3] != 0 else 0
+        if pct > 5:
+            sig("✅", "Revenue trend", f"Growing +{pct:.0f}% over last 2 years")
+        elif pct < -10:
+            sig("🔴", "Revenue trend", f"Down {pct:.0f}% — check if cycle-driven or structural")
+        else:
+            sig("🟡", "Revenue trend", f"Roughly flat ({pct:+.0f}%) — watch for inflection")
+
+    if g_margin is not None and len(g_margin) >= 3:
+        chg = float(g_margin.iloc[-1] - g_margin.iloc[-3])
+        if chg > 1:
+            sig("✅", "Gross margin", f"Expanding +{chg:.1f}pp over 2 years")
+        elif chg < -2:
+            sig("🔴", "Gross margin", f"Compressing {chg:.1f}pp — pricing power concern")
+        else:
+            sig("🟡", "Gross margin", f"Stable ({chg:+.1f}pp)")
+
+    if o_margin is not None and len(o_margin) >= 3:
+        chg = float(o_margin.iloc[-1] - o_margin.iloc[-3])
+        if chg > 1:
+            sig("✅", "Op. margin", f"Expanding +{chg:.1f}pp over 2 years")
+        elif chg < -2:
+            sig("🔴", "Op. margin", f"Compressing {chg:.1f}pp — structural pressure likely")
+        else:
+            sig("🟡", "Op. margin", f"Stable ({chg:+.1f}pp)")
+
+    short_pct = info.get("shortPercentOfFloat")
+    if short_pct is not None:
+        sp = short_pct * 100
+        if sp > 15:
+            sig("🔴", "Short interest", f"{sp:.1f}% of float — smart money may see structural issue")
+        elif sp < 5:
+            sig("✅", "Short interest", f"{sp:.1f}% of float — low")
+        else:
+            sig("🟡", "Short interest", f"{sp:.1f}% of float — moderate")
+
+    # In today's screen?
+    if not combined.empty and ticker in combined["Ticker"].values:
+        row    = combined[combined["Ticker"] == ticker].iloc[0]
+        screen = row.get("_screen", "a screen")
+        score  = row.get("Score", "—")
+        signals.append(("📊", "In today's screen", f"{screen} · conviction score {score}/10"))
+
+    # ── Verdict ────────────────────────────────────────────────────────────────
+    if red_flags >= 2:
+        verdict, vc = "🔴  Structural Risk", "#e05c6a"
+        vdesc = "Multiple red flags. Investigate market-share trends and whether revenue peaks are getting lower before sizing."
+    elif red_flags == 0 and green_flags >= 2:
+        verdict, vc = "🟢  Likely Cyclical", "#4caf91"
+        vdesc = "Fundamentals look intact. Decline appears externally driven — classic mean-reversion setup."
+    else:
+        verdict, vc = "🟡  Unclear — Do More Work", "#fd7e14"
+        vdesc = "Mixed signals. Check 10-year revenue history, peer comparisons, and what management is doing with capital."
+
+    # ── Render ─────────────────────────────────────────────────────────────────
+    company = info.get("longName", ticker)
+    sector  = info.get("sector", "—")
+    st.markdown(f"#### {company} ({ticker}) · {sector}")
+
+    st.markdown(f"""
+<div style="background:var(--secondary-background-color);border-radius:12px;
+            padding:16px 20px;border-left:4px solid {vc};margin-bottom:16px">
+  <div style="font-size:1.05rem;font-weight:700;color:{vc};margin-bottom:4px">{verdict}</div>
+  <div style="font-size:0.87rem;opacity:0.85">{vdesc}</div>
+</div>""", unsafe_allow_html=True)
+
+    # Charts
+    cc1, cc2 = st.columns(2)
+    with cc1:
+        fig = px.bar(x=years, y=rev_b.values, title="Annual Revenue ($B)",
+                     template="plotly_dark", color_discrete_sequence=["#4da6ff"],
+                     labels={"x": "Year", "y": "$B"})
+        fig.update_layout(showlegend=False, height=280, margin=dict(t=40, b=0),
+                          paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+        st.plotly_chart(fig, use_container_width=True)
+
+    with cc2:
+        if g_margin is not None or o_margin is not None:
+            fig = go.Figure()
+            if g_margin is not None:
+                fig.add_trace(go.Scatter(x=years, y=g_margin.values, name="Gross Margin %",
+                                         line=dict(color="#4caf91", width=2)))
+            if o_margin is not None:
+                fig.add_trace(go.Scatter(x=years, y=o_margin.values, name="Op. Margin %",
+                                         line=dict(color="#4da6ff", width=2)))
+            fig.update_layout(title="Margin Trends (%)", template="plotly_dark", height=280,
+                              margin=dict(t=40, b=0),
+                              paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
+            st.plotly_chart(fig, use_container_width=True)
+
+    # Signals
+    st.markdown("**Signals**")
+    for icon, label, detail in signals:
+        st.markdown(f"{icon} &nbsp; **{label}** — {detail}", unsafe_allow_html=True)
+
+    st.divider()
+    with st.expander("Diagnostic framework reference"):
+        st.markdown("""
+**Type 1 — External cycle** · Whole industry down equally. Mean reversion is almost mechanical.
+**Type 2 — Temporary self-inflicted wound** · Bad acquisition, CEO departure, guidance miss. Recoverable if franchise intact.
+**Type 3 — Structural disruption** · New force permanently shrinking TAM or compressing margins. Often looks like Type 1 for years.
+**Type 4 — Terminal decline** · Business model irreversibly broken. Rare in large caps.
+
+---
+**Key checks:**
+- 10-year revenue: lower highs each cycle = structural red flag
+- Gross/op margin trend: staircase down across cycles = structural
+- Are all peers down equally? If yes → cyclical. If only this name → dig deeper
+- Short interest >15%: smart money may have done the work
+- Management actions vs words: buybacks = confidence, asset sales = distress
+- Are your customers in shrinking industries?
+        """)
+
+
+with tab_diag:
+    st.markdown("### Cycle vs. Structural Diagnostic")
+    st.caption(
+        "Paste any ticker to check whether its decline is a cyclical opportunity or a structural value trap."
+    )
+
+    dc1, dc2 = st.columns([3, 1])
+    diag_ticker = dc1.text_input(
+        "Ticker", placeholder="e.g. CAG, MKC, IP, GPN",
+        label_visibility="collapsed", key="diag_ticker"
+    )
+    run_diag = dc2.button("Analyse →", type="primary", use_container_width=True)
+
+    if run_diag and diag_ticker:
+        _run_diagnostic(diag_ticker.strip().upper())
