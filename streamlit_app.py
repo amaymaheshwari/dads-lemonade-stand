@@ -891,7 +891,8 @@ def _run_diagnostic(ticker: str) -> None:
     if eh_df is not None:
         st.markdown("**Earnings History (last 4 quarters)**")
         disp_cols = [c for c in ["EPS Est", "EPS Actual", "Surprise", "Result"] if c in eh_df.columns]
-        st.dataframe(eh_df[disp_cols], use_container_width=True)
+        _eh = eh_df[disp_cols].loc[:, ~eh_df[disp_cols].columns.duplicated()].reset_index(drop=True)
+        st.dataframe(_eh, use_container_width=True)
 
     # Analyst actions table
     if ud_df is not None:
@@ -899,7 +900,9 @@ def _run_diagnostic(ticker: str) -> None:
         if ud_df.empty:
             st.caption("No analyst actions in the last 90 days.")
         else:
-            st.dataframe(ud_df, use_container_width=True)
+            # Deduplicate columns and reset index before passing to Arrow serialiser
+            _ud = ud_df.loc[:, ~ud_df.columns.duplicated()].reset_index(drop=True)
+            st.dataframe(_ud, use_container_width=True)
 
     st.divider()
     with st.expander("Diagnostic framework reference"):
