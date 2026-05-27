@@ -1,0 +1,24 @@
+Ticker,Company,Price,52W High,% Off 52W High,30Q SMA,30Q SMA,50Q SMA,100Q SMA,% Below SMA,P/B Ratio,Div Yield,ROE,Short % Float,Short Ratio (Days),Insider Signal,Insider Net Value (6mo),Insider Buys,Insider Sells,EPS Beats (4Q),Analyst (90d),Market Cap,Sector,Exchange
+PFE,Pfizer Inc.,26.37,28.75,8.2%,28.43,28.43,25.47,18.18,7.2%,1.67,6.65%,8.3%,2.5%,4.0,NEUTRAL,—,0,0,✅ 4/4,↑1 ↓0,$150.32B,Health Technology,NYSE
+HUM,Humana Inc.,305.62,315.66,3.2%,355.44,355.44,289.86,165.97,14.0%,1.97,1.17%,6.2%,5.9%,3.2,BUYING,$+150K,1,0,✅ 4/4,↑0 ↓0,$36.69B,Health Services,NYSE
+CNC,Centene Corporation,58.42,60.76,3.9%,63.89,63.89,53.34,,8.6%,1.35,—,-26.1%,3.5%,2.3,SELLING,$-2.6M,0,1,✅ 3/4,↑0 ↓0,$28.85B,Health Services,NYSE
+LEN,Lennar Corporation Class A,93.16,144.24,35.4%,93.52,93.52,72.50,48.46,0.4%,1.05,2.24%,7.9%,0.2%,0.1,NEUTRAL,—,0,0,🔴 0/4,↑1 ↓0,$22.89B,Consumer Durables,NYSE
+RCI,Rogers Communications Inc. Class B,37.48,41.14,8.9%,37.62,37.62,34.79,24.78,0.4%,1.57,3.82%,49.3%,—,5.9,NEUTRAL,—,0,0,✅ 3/4,↑0 ↓0,$20.31B,Communications,NYSE
+BRO,"Brown & Brown, Inc.",58.09,113.83,49.0%,63.27,63.27,45.45,27.35,8.2%,1.55,1.16%,11.7%,7.1%,6.4,BUYING,$+114K,1,0,✅ 4/4,↑1 ↓0,$19.69B,Finance,NYSE
+DOC,"Healthpeak Properties, Inc.",20.19,20.27,0.4%,20.23,20.23,19.64,15.31,0.2%,1.79,6.09%,2.8%,6.0%,3.9,SELLING,$-214K,0,1,🟡 2/4,↑1 ↓0,$14.26B,Finance,NYSE
+CNH,CNH Industrial NV,10.44,14.27,26.9%,10.66,10.66,9.19,,2.1%,1.66,0.98%,4.9%,5.9%,3.1,SELLING,$-490K,0,1,🟡 2/4,↑1 ↓0,$12.94B,Producer Manufacturing,NYSE
+WLK,Westlake Corporation,87.57,124.23,29.5%,90.86,90.86,79.25,,3.6%,1.31,2.39%,-17.2%,10.6%,3.2,SELLING,$-7.1M,0,4,🔴 1/4,↑0 ↓0,$11.22B,Process Industries,NYSE
+RVTY,"Revvity, Inc.",97.71,118.30,17.4%,117.64,117.64,93.93,57.03,16.9%,1.52,0.29%,3.2%,11.8%,8.8,SELLING,$-4.7M,0,6,✅ 4/4,↑0 ↓0,$10.90B,Health Technology,NYSE
+GME,GameStop Corp. Class A,21.58,31.35,31.2%,21.98,21.98,15.38,,1.8%,1.78,—,8.1%,14.5%,8.6,BUYING,$+21.1M,4,6,✅ 3/3,—,$9.68B,Retail Trade,NYSE
+UHAL,U-Haul Holding Company,51.65,64.75,20.2%,54.01,54.01,45.78,25.94,4.4%,1.31,—,1.2%,18.9%,7.5,—,—,0,0,🔴 0/4,—,$9.28B,Finance,NYSE
+REXR,"Rexford Industrial Realty, Inc.",36.54,44.38,17.7%,42.85,42.85,32.45,,14.7%,1.02,4.76%,2.7%,6.1%,4.1,SELLING,$-3.9M,3,4,✅ 3/4,↑0 ↓0,$8.25B,Finance,NYSE
+WFG,West Fraser Timber Co. Ltd.,65.89,78.55,16.1%,66.26,66.26,56.97,,0.6%,0.91,2.00%,-18.1%,—,9.7,NEUTRAL,—,0,0,🔴 1/4,↑0 ↓0,$5.16B,Non-Energy Minerals,NYSE
+THO,"Thor Industries, Inc.",81.25,122.83,33.9%,86.66,86.66,78.04,49.35,6.2%,0.99,2.66%,7.3%,9.6%,5.3,SELLING,$-473K,1,2,✅ 4/4,↑1 ↓0,$4.27B,Consumer Durables,NYSE
+SLGN,Silgan Holdings Inc.,38.50,57.04,32.5%,40.03,40.03,33.33,21.54,3.8%,1.75,2.21%,12.9%,8.7%,10.5,NEUTRAL,—,0,0,🟡 2/4,↑1 ↓0,$4.07B,Process Industries,NYSE
+IAC,IAC Inc.,44.40,45.82,3.1%,57.41,57.41,41.36,23.18,22.7%,0.73,—,2.4%,17.8%,8.0,NEUTRAL,—,0,0,🔴 1/4,↑0 ↓0,$3.30B,Technology Services,NASDAQ
+NSIT,"Insight Enterprises, Inc.",103.92,148.58,30.1%,108.29,108.29,78.68,47.67,4.0%,1.96,—,11.3%,7.1%,3.2,BUYING,$+200K,1,0,🔴 2/4,↑0 ↓0,$3.14B,Technology Services,NASDAQ
+ITGR,Integer Holdings Corporation,89.97,123.78,27.3%,90.28,90.28,73.04,48.20,0.3%,1.80,—,8.6%,14.2%,8.4,SELLING,$-70K,0,1,✅ 3/4,↑0 ↓0,$3.05B,Health Technology,NYSE
+CALY,Callaway Golf Company,16.08,18.00,10.7%,18.08,18.08,15.59,12.89,11.1%,1.38,—,0.6%,4.3%,2.6,SELLING,$-149.8M,0,4,✅ 4/4,↑0 ↓0,$2.89B,Consumer Durables,NYSE
+CWT,California Water Service Group,43.84,50.44,13.1%,47.56,47.56,39.13,25.18,7.8%,1.56,3.08%,7.2%,3.4%,2.5,SELLING,$-381K,1,4,🔴 2/4,—,$2.62B,Utilities,NYSE
+KWR,Quaker Houghton,148.00,183.00,19.1%,170.18,170.18,144.91,83.71,13.0%,1.87,1.39%,0.3%,16.2%,11.0,NEUTRAL,—,0,0,🔴 1/4,↑0 ↓0,$2.57B,Process Industries,NYSE
+IOSP,Innospec Inc.,82.41,92.14,10.6%,88.56,88.56,72.95,43.73,6.9%,1.51,2.18%,8.8%,2.8%,2.6,SELLING,$-902K,0,13,✅ 4/4,—,$2.03B,Process Industries,NASDAQ
