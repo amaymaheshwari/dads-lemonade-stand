@@ -1,0 +1,13 @@
+Ticker,Company,Price,% Above 20Q SMA,20Q SMA,30Q SMA,50Q SMA,P/B Ratio,Div Yield,ROE,Short % Float,Short Ratio (Days),Insider Signal,Insider Net Value (6mo),Insider Buys,Insider Sells,EPS Beats (4Q),Analyst (90d),Market Cap,Sector,Exchange
+CNI,Canadian National Railway Company,118.80,10.0%,108.04,100.75,84.00,4.68,2.25%,21.8%,—,3.7,NEUTRAL,—,0,0,🟡 2/4,↑0 ↓0,$72.06B,Transportation,NYSE
+WCN,"Waste Connections, Inc.",154.16,1.1%,152.53,133.72,99.68,4.85,0.92%,12.8%,0.9%,1.1,BUYING,$+5.5M,1,6,✅ 4/4,↑1 ↓0,$39.17B,Industrial Services,NYSE
+SYY,Sysco Corporation,75.32,3.9%,72.52,68.07,56.31,15.68,2.92%,82.3%,3.3%,3.1,BUYING,$+314K,1,2,✅ 3/4,↑0 ↓0,$36.02B,Distribution Services,NYSE
+J,Jacobs Solutions Inc.,117.66,0.6%,116.95,103.62,78.51,4.22,1.24%,11.5%,6.3%,4.8,BUYING,$+285K,3,1,✅ 4/4,↑0 ↓0,$13.89B,Technology Services,NYSE
+UDR,"UDR, Inc.",37.76,0.7%,37.50,36.41,31.75,3.79,4.58%,14.8%,7.7%,4.8,NEUTRAL,—,0,0,🟡 2/4,↑0 ↓0,$12.27B,Finance,NYSE
+MGM,MGM Resorts International,42.40,8.3%,39.16,35.24,31.20,4.46,—,7.1%,20.5%,5.4,BUYING,$+75.6M,2,2,🔴 2/4,↑0 ↓0,$10.85B,Consumer Services,NYSE
+STN,Stantec Inc,75.19,3.4%,72.74,58.55,44.58,3.53,0.95%,15.3%,—,4.4,NEUTRAL,—,0,0,🟡 2/4,↑0 ↓0,$8.58B,Industrial Services,NYSE
+MIDD,Middleby Corporation,151.84,3.8%,146.31,139.09,127.96,2.98,—,-7.7%,6.7%,3.4,BUYING,$+15.1M,2,0,✅ 4/4,↑0 ↓0,$6.87B,Producer Manufacturing,NASDAQ
+SLM,SLM Corp,22.11,9.9%,20.11,16.82,13.43,1.91,2.38%,30.9%,13.9%,6.9,NEUTRAL,—,0,0,🔴 2/4,↑0 ↓0,$4.17B,Finance,NASDAQ
+MGEE,"MGE Energy, Inc.",76.30,1.0%,75.51,71.14,60.12,2.08,2.49%,10.9%,5.6%,4.8,BUYING,$+50K,2,0,🟡 2/4,↑0 ↓0,$2.88B,Utilities,NASDAQ
+HTO,H2O America,58.28,3.8%,56.15,56.11,47.86,1.33,3.04%,6.5%,15.2%,8.2,BUYING,$+6.0M,2,0,🟡 2/4,↑3 ↓0,$2.44B,Utilities,NASDAQ
+AGYS,"Agilysys, Inc.",81.12,3.2%,78.58,62.78,42.36,6.99,—,13.1%,4.8%,4.3,BUYING,$+78K,2,0,🔴 2/4,↑0 ↓0,$2.29B,Technology Services,NASDAQ

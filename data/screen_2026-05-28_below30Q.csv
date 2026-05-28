@@ -1,0 +1,26 @@
+Ticker,Company,Price,52W High,% Off 52W High,30Q SMA,30Q SMA,50Q SMA,100Q SMA,% Below SMA,P/B Ratio,Div Yield,ROE,Short % Float,Short Ratio (Days),Insider Signal,Insider Net Value (6mo),Insider Buys,Insider Sells,EPS Beats (4Q),Analyst (90d),Market Cap,Sector,Exchange
+PFE,Pfizer Inc.,26.16,28.75,9.0%,28.42,28.42,25.47,18.18,7.9%,1.65,6.56%,8.3%,2.8%,4.3,NEUTRAL,—,0,0,✅ 4/4,↑1 ↓0,$149.10B,Health Technology,NYSE
+HUM,Humana Inc.,307.28,315.66,2.7%,355.55,355.55,289.93,166.00,13.6%,1.99,1.16%,6.2%,5.7%,3.0,BUYING,$+150K,1,0,✅ 4/4,↑0 ↓0,$36.89B,Health Services,NYSE
+CNC,Centene Corporation,59.72,60.76,1.7%,63.93,63.93,53.36,,6.6%,1.38,—,-26.1%,3.5%,2.1,SELLING,$-2.6M,0,1,✅ 3/4,↑0 ↓0,$29.49B,Health Services,NYSE
+LEN,Lennar Corporation Class A,90.25,144.24,37.4%,93.42,93.42,72.45,48.43,3.4%,1.02,2.20%,7.9%,0.3%,0.2,NEUTRAL,—,0,0,🔴 0/4,↑1 ↓0,$22.15B,Consumer Durables,NYSE
+BRO,"Brown & Brown, Inc.",57.18,113.83,49.8%,63.24,63.24,45.43,27.34,9.6%,1.52,1.16%,11.7%,6.3%,4.7,BUYING,$+114K,1,0,✅ 4/4,↑1 ↓0,$19.38B,Finance,NYSE
+WY,Weyerhaeuser Company,24.68,27.86,11.4%,26.48,26.48,24.62,18.08,6.8%,1.89,3.43%,4.2%,4.1%,4.6,SELLING,$-1.7M,3,2,✅ 4/4,↑0 ↓0,$17.80B,Finance,NYSE
+CNH,CNH Industrial NV,10.30,14.27,27.8%,10.65,10.65,9.18,,3.3%,1.64,0.95%,4.9%,6.7%,3.6,SELLING,$-490K,0,1,🟡 2/4,↑1 ↓0,$12.77B,Producer Manufacturing,NYSE
+WLK,Westlake Corporation,88.05,124.23,29.1%,90.35,90.35,78.79,,2.5%,1.32,2.41%,-17.2%,11.0%,3.0,SELLING,$-7.1M,0,4,🔴 1/4,↑0 ↓0,$11.28B,Process Industries,NYSE
+RVTY,"Revvity, Inc.",99.47,118.30,15.9%,117.73,117.73,93.98,57.05,15.5%,1.55,0.29%,3.2%,12.8%,6.7,SELLING,$-4.7M,0,6,✅ 4/4,↑0 ↓0,$11.10B,Health Technology,NYSE
+WTRG,"Essential Utilities, Inc.",37.36,42.37,11.8%,37.51,37.51,32.01,21.07,0.4%,1.54,3.69%,8.3%,1.6%,1.7,NEUTRAL,—,0,0,✅ 3/4,—,$10.60B,Utilities,NYSE
+GME,GameStop Corp. Class A,21.76,31.05,29.9%,21.99,21.99,15.38,,1.0%,1.79,—,8.1%,14.1%,5.5,BUYING,$+21.1M,4,6,✅ 3/3,—,$9.76B,Retail Trade,NYSE
+UHAL,U-Haul Holding Company,53.48,64.75,17.4%,54.11,54.11,45.84,25.97,1.2%,1.35,—,1.2%,22.4%,10.2,—,—,0,0,🔴 0/4,—,$9.60B,Finance,NYSE
+REXR,"Rexford Industrial Realty, Inc.",36.15,44.38,18.6%,42.83,42.83,32.44,,15.6%,1.01,4.79%,2.7%,6.2%,4.7,SELLING,$-3.9M,3,4,✅ 3/4,↑0 ↓0,$8.16B,Finance,NYSE
+DOX,Amdocs Limited,61.99,95.41,35.0%,71.21,71.21,61.93,42.11,12.9%,1.95,3.71%,15.6%,7.4%,6.2,NEUTRAL,—,0,0,✅ 3/4,↑0 ↓0,$6.67B,Technology Services,NASDAQ
+THO,"Thor Industries, Inc.",78.77,122.83,35.9%,86.56,86.56,77.98,49.32,9.0%,0.96,2.64%,7.3%,10.8%,6.4,SELLING,$-473K,1,2,✅ 4/4,↑1 ↓0,$4.14B,Consumer Durables,NYSE
+SLGN,Silgan Holdings Inc.,37.76,57.04,33.8%,40.01,40.01,33.31,21.54,5.6%,1.72,2.21%,12.9%,9.0%,10.1,NEUTRAL,—,0,0,🟡 2/4,↑1 ↓0,$3.99B,Process Industries,NYSE
+IAC,IAC Inc.,44.16,45.82,3.6%,57.42,57.42,41.36,23.18,23.1%,0.72,—,2.4%,19.0%,5.7,NEUTRAL,—,0,0,🔴 1/4,↑0 ↓0,$3.28B,Technology Services,NASDAQ
+NSIT,"Insight Enterprises, Inc.",102.60,148.58,30.9%,108.25,108.25,78.66,47.65,5.2%,1.93,—,11.3%,6.4%,1.9,BUYING,$+200K,1,0,🔴 2/4,↑0 ↓0,$3.10B,Technology Services,NASDAQ
+ITGR,Integer Holdings Corporation,89.05,123.78,28.1%,90.25,90.25,73.02,48.19,1.3%,1.78,—,8.6%,15.0%,6.8,SELLING,$-70K,0,1,✅ 3/4,↑0 ↓0,$3.02B,Health Technology,NYSE
+CALY,Callaway Golf Company,15.72,18.00,12.7%,18.07,18.07,15.58,12.89,13.0%,1.35,—,0.6%,4.7%,2.0,SELLING,$-149.8M,0,4,✅ 4/4,↑0 ↓0,$2.83B,Consumer Durables,NYSE
+CWT,California Water Service Group,44.39,50.44,12.0%,47.58,47.58,39.14,25.19,6.7%,1.58,3.04%,7.2%,3.9%,2.7,SELLING,$-429K,1,5,🔴 2/4,—,$2.66B,Utilities,NYSE
+KWR,Quaker Houghton,145.86,183.00,20.3%,170.08,170.08,144.86,83.69,14.2%,1.84,1.38%,0.3%,16.0%,10.7,NEUTRAL,—,0,0,🔴 1/4,↑0 ↓0,$2.53B,Process Industries,NYSE
+ABM,ABM Industries Incorporated,39.92,52.94,24.6%,40.41,40.41,35.34,24.45,1.2%,1.36,2.90%,9.0%,6.6%,6.7,SELLING,$-1.8M,0,2,🔴 0/4,↑0 ↓0,$2.34B,Commercial Services,NYSE
+CXT,"Crane NXT, Co.",39.14,69.00,43.3%,39.70,39.70,32.18,20.48,1.4%,1.82,1.84%,11.1%,17.9%,10.5,BUYING,$+141K,5,1,✅ 4/4,↑0 ↓0,$2.25B,Producer Manufacturing,NYSE
+IOSP,Innospec Inc.,82.07,92.14,10.9%,88.54,88.54,72.94,43.72,7.3%,1.51,2.18%,8.8%,1.9%,1.6,SELLING,$-902K,0,13,✅ 4/4,—,$2.02B,Process Industries,NASDAQ
